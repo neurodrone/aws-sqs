@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -34,7 +33,13 @@ type ErrorResponse struct {
 }
 
 func (er *ErrorResponse) String() string {
-	return fmt.Sprintf("\tType: %s\n\tCode: %s\n\tMessage: %s", er.Type, er.Code, er.Message)
+	return fmt.Sprintf("Type: %s, Code: %s, Message: %s", er.Type, er.Code, er.Message)
+}
+
+type MessageResponse struct {
+	MessageId  string `xml:"SendMessageResult>MessageId"`
+	MessageMD5 string `xml:"SendMessageResult>MD5OfMessageBody"`
+	RequestId  string `xml:"ResponseMetaadata>RequestId"`
 }
 
 func main() {
@@ -46,10 +51,12 @@ func main() {
 	}
 
 	message := "This is a test message"
-	err := sendSQSMessage(message)
+	msgResp, err := sendSQSMessage(message)
 	if err != nil {
 		log.Fatalf("Unable to send message: %s", err)
 	}
+
+	log.Println(msgResp.MessageId, "sent")
 }
 
 func validateInputs() Errors {
@@ -71,7 +78,7 @@ func validateInputs() Errors {
 	return errs
 }
 
-func sendSQSMessage(message string) error {
+func sendSQSMessage(message string) (*MessageResponse, error) {
 	sqsURI := generateSQSURI(*regionId, *uuid, *queueName)
 	method := "POST"
 
@@ -85,11 +92,9 @@ func sendSQSMessage(message string) error {
 
 	uv.Set("Signature", getSignature(sqsURI, method, *awsSecret, uv))
 
-	log.Println(uv.Encode())
-
 	req, err := http.NewRequest(method, sqsURI, bytes.NewBufferString(uv.Encode()))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -98,7 +103,7 @@ func sendSQSMessage(message string) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -106,16 +111,17 @@ func sendSQSMessage(message string) error {
 		errResponse, err := getErrorResponse(resp.Body)
 		if err != nil {
 			log.Println("Failed getting error response:", err)
-		} else {
-			log.Println(errResponse)
+			return nil, err
 		}
-
-		return nil
+		return nil, fmt.Errorf("%s", errResponse)
 	}
 
-	buf, _ := ioutil.ReadAll(resp.Body)
-	log.Println(string(buf))
-	return nil
+	msgResp, err := getMessageResponse(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return msgResp, nil
 }
 
 func getSignature(sqsURI, method, secret string, uv url.Values) string {
@@ -150,6 +156,17 @@ func getErrorResponse(r io.Reader) (*ErrorResponse, error) {
 	}
 
 	return er, nil
+}
+
+func getMessageResponse(r io.Reader) (*MessageResponse, error) {
+	msr := new(MessageResponse)
+
+	err := xml.NewDecoder(r).Decode(msr)
+	if err != nil {
+		return nil, err
+	}
+
+	return msr, nil
 }
 
 func generateSQSURI(region, uuid, queueName string) string {
