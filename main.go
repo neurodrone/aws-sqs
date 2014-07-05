@@ -44,10 +44,15 @@ type SendMessageResponse struct {
 }
 
 type RecvMessageResponse struct {
-	MessageId   string `xml:"ReceiveMessageResult>Message>MessageId"`
-	MessageMD5  string `xml:"ReceiveMessageResult>Message>MD5OfBody"`
-	MessageBody string `xml:"ReceiveMessageResult>Message>Body"`
-	RequestId   string `xml:"ResponseMetadata>RequestId"`
+	MessageId     string `xml:"ReceiveMessageResult>Message>MessageId"`
+	MessageMD5    string `xml:"ReceiveMessageResult>Message>MD5OfBody"`
+	MessageBody   string `xml:"ReceiveMessageResult>Message>Body"`
+	ReceiptHandle string `xml:"ReceiveMessageResult>Message>ReceiptHandle"`
+	RequestId     string `xml:"ResponseMetadata>RequestId"`
+}
+
+type BasicMessageResponse struct {
+	RequestId string `xml:"ResponseMetadata>RequestId"`
 }
 
 func main() {
@@ -58,13 +63,19 @@ func main() {
 		log.Fatalf("Aborting.")
 	}
 
-	message := "This is a test message"
-	msgResp, err := sendSQSMessage(message)
+	msgResp, err := receiveSQSMessage()
 	if err != nil {
-		log.Fatalf("Unable to send message: %s", err)
+		log.Fatalf("Unable to receive message: %s", err)
 	}
 
-	log.Println(msgResp.MessageId, "sent")
+	log.Println(msgResp.MessageId, "received.")
+	log.Println(msgResp.MessageBody)
+
+	err = deleteSQSMessage(msgResp.ReceiptHandle)
+	if err != nil {
+		log.Fatalf("Unable to delete message: %s", msgResp.MessageId)
+	}
+	log.Println("Successfully received and deleted.")
 }
 
 func validateInputs() Errors {
@@ -86,7 +97,7 @@ func validateInputs() Errors {
 	return errs
 }
 
-func makeSQSRequest(params map[string]string) (io.ReadCloser, error) {
+func makeSQSRequest(params map[string]string) (io.Reader, error) {
 	sqsURI := generateSQSURI(*regionId, *uuid, *queueName)
 	method := "POST"
 
@@ -159,7 +170,31 @@ func receiveSQSMessage() (*RecvMessageResponse, error) {
 		return nil, err
 	}
 
+	if rmr.MessageBody == "" && rmr.MessageMD5 == "" {
+		return nil, fmt.Errorf("No message to dequeue.")
+	}
+
 	return rmr, nil
+}
+
+func deleteSQSMessage(handle string) error {
+	params := map[string]string{
+		"Action":        "DeleteMessage",
+		"ReceiptHandle": handle,
+	}
+
+	reader, err := makeSQSRequest(params)
+	if err != nil {
+		return err
+	}
+
+	bmr := new(BasicMessageResponse)
+	err = getResponseFromXML(reader, bmr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getSignature(sqsURI, method, secret string, uv url.Values) string {
