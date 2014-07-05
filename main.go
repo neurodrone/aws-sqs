@@ -63,6 +63,15 @@ func main() {
 		log.Fatalf("Aborting.")
 	}
 
+/*
+	message := "This is a test message"
+	_, err := sendSQSMessage(message)
+	if err != nil {
+		log.Fatalf("Unable to enqueue message: %s", err)
+	}
+
+	log.Println("Message sent.")
+*/
 	msgResp, err := receiveSQSMessage()
 	if err != nil {
 		log.Fatalf("Unable to receive message: %s", err)
@@ -75,6 +84,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to delete message: %s", msgResp.MessageId)
 	}
+
 	log.Println("Successfully received and deleted.")
 }
 
@@ -146,7 +156,7 @@ func sendSQSMessage(message string) (*SendMessageResponse, error) {
 	}
 
 	smr := new(SendMessageResponse)
-	err = getResponseFromXML(reader, smr)
+	err = xml.NewDecoder(reader).Decode(smr)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +175,7 @@ func receiveSQSMessage() (*RecvMessageResponse, error) {
 	}
 
 	rmr := new(RecvMessageResponse)
-	err = getResponseFromXML(reader, rmr)
+	err = xml.NewDecoder(reader).Decode(rmr)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +199,7 @@ func deleteSQSMessage(handle string) error {
 	}
 
 	bmr := new(BasicMessageResponse)
-	err = getResponseFromXML(reader, bmr)
+	err = xml.NewDecoder(reader).Decode(bmr)
 	if err != nil {
 		return err
 	}
@@ -211,22 +221,13 @@ func getSignature(sqsURI, method, secret string, uv url.Values) string {
 	}, "\n")
 
 	h := hmac.New(sha256.New, []byte(secret))
-	fmt.Fprintf(h, "%s", sigPayload)
+	fmt.Fprint(h, sigPayload)
 
 	b64 := base64.StdEncoding
 	sig := make([]byte, b64.EncodedLen(h.Size()))
 	b64.Encode(sig, h.Sum(nil))
 
 	return string(sig)
-}
-
-func getResponseFromXML(r io.Reader, resp interface{}) error {
-	err := xml.NewDecoder(r).Decode(resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func generateSQSURI(region, uuid, queueName string) string {
