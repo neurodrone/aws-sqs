@@ -40,7 +40,7 @@ func (er *ErrorResponse) String() string {
 type SendMessageResponse struct {
 	MessageId  string `xml:"SendMessageResult>MessageId"`
 	MessageMD5 string `xml:"SendMessageResult>MD5OfMessageBody"`
-	RequestId  string `xml:"ResponseMetadata>RequestId"`
+	BasicMessageResponse
 }
 
 type RecvMessageResponse struct {
@@ -48,7 +48,7 @@ type RecvMessageResponse struct {
 	MessageMD5    string `xml:"ReceiveMessageResult>Message>MD5OfBody"`
 	MessageBody   string `xml:"ReceiveMessageResult>Message>Body"`
 	ReceiptHandle string `xml:"ReceiveMessageResult>Message>ReceiptHandle"`
-	RequestId     string `xml:"ResponseMetadata>RequestId"`
+	BasicMessageResponse
 }
 
 type BasicMessageResponse struct {
