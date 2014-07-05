@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -36,10 +37,17 @@ func (er *ErrorResponse) String() string {
 	return fmt.Sprintf("Type: %s, Code: %s, Message: %s", er.Type, er.Code, er.Message)
 }
 
-type MessageResponse struct {
+type SendMessageResponse struct {
 	MessageId  string `xml:"SendMessageResult>MessageId"`
 	MessageMD5 string `xml:"SendMessageResult>MD5OfMessageBody"`
-	RequestId  string `xml:"ResponseMetaadata>RequestId"`
+	RequestId  string `xml:"ResponseMetadata>RequestId"`
+}
+
+type RecvMessageResponse struct {
+	MessageId   string `xml:"ReceiveMessageResult>Message>MessageId"`
+	MessageMD5  string `xml:"ReceiveMessageResult>Message>MD5OfBody"`
+	MessageBody string `xml:"ReceiveMessageResult>Message>Body"`
+	RequestId   string `xml:"ResponseMetadata>RequestId"`
 }
 
 func main() {
@@ -78,17 +86,19 @@ func validateInputs() Errors {
 	return errs
 }
 
-func sendSQSMessage(message string) (*MessageResponse, error) {
+func makeSQSRequest(params map[string]string) (io.ReadCloser, error) {
 	sqsURI := generateSQSURI(*regionId, *uuid, *queueName)
 	method := "POST"
 
 	var uv = url.Values{}
-	uv.Set("Action", "SendMessage")
-	uv.Set("MessageBody", message)
 	uv.Set("AWSAccessKey", *awsAccessKey)
 	uv.Set("SignatureVersion", "2")
 	uv.Set("SignatureMethod", "HmacSHA256")
-	uv.Set("Version", "2011-10-01")
+	uv.Set("Version", "2012-11-05")
+
+	for key, value := range params {
+		uv.Set(key, value)
+	}
 
 	uv.Set("Signature", getSignature(sqsURI, method, *awsSecret, uv))
 
@@ -105,23 +115,51 @@ func sendSQSMessage(message string) (*MessageResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		errResponse, err := getErrorResponse(resp.Body)
-		if err != nil {
-			log.Println("Failed getting error response:", err)
-			return nil, err
-		}
-		return nil, fmt.Errorf("%s", errResponse)
+	if resp.StatusCode == http.StatusOK {
+		return resp.Body, nil
 	}
 
-	msgResp, err := getMessageResponse(resp.Body)
+	return resp.Body, errors.New(resp.Status)
+}
+
+func sendSQSMessage(message string) (*SendMessageResponse, error) {
+	params := map[string]string{
+		"Action":      "SendMessage",
+		"MessageBody": message,
+	}
+
+	reader, err := makeSQSRequest(params)
 	if err != nil {
 		return nil, err
 	}
 
-	return msgResp, nil
+	smr := new(SendMessageResponse)
+	err = getResponseFromXML(reader, smr)
+	if err != nil {
+		return nil, err
+	}
+
+	return smr, nil
+}
+
+func receiveSQSMessage() (*RecvMessageResponse, error) {
+	params := map[string]string{
+		"Action": "ReceiveMessage",
+	}
+
+	reader, err := makeSQSRequest(params)
+	if err != nil {
+		return nil, err
+	}
+
+	rmr := new(RecvMessageResponse)
+	err = getResponseFromXML(reader, rmr)
+	if err != nil {
+		return nil, err
+	}
+
+	return rmr, nil
 }
 
 func getSignature(sqsURI, method, secret string, uv url.Values) string {
@@ -147,26 +185,13 @@ func getSignature(sqsURI, method, secret string, uv url.Values) string {
 	return string(sig)
 }
 
-func getErrorResponse(r io.Reader) (*ErrorResponse, error) {
-	er := new(ErrorResponse)
-
-	err := xml.NewDecoder(r).Decode(er)
+func getResponseFromXML(r io.Reader, resp interface{}) error {
+	err := xml.NewDecoder(r).Decode(resp)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return er, nil
-}
-
-func getMessageResponse(r io.Reader) (*MessageResponse, error) {
-	msr := new(MessageResponse)
-
-	err := xml.NewDecoder(r).Decode(msr)
-	if err != nil {
-		return nil, err
-	}
-
-	return msr, nil
+	return nil
 }
 
 func generateSQSURI(region, uuid, queueName string) string {
