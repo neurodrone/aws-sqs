@@ -39,11 +39,11 @@ type BasicMessageResponse struct {
 }
 
 type SQSRequest struct {
-	RegionId string
-	UUID string
-	QueueName string
+	RegionId     string
+	UUID         string
+	QueueName    string
 	AWSAccessKey string
-	AWSSecret string
+	AWSSecret    string
 }
 
 func (s *SQSRequest) makeSQSRequest(params map[string]string) (io.Reader, error) {

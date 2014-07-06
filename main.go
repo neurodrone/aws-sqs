@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"github.com/neurodrone/aws-sqs/sqs"
+	"log"
+	"os"
 )
 
 var (
@@ -16,13 +17,12 @@ var (
 	queueName = flag.String("queue", "", "AWS Queue Name")
 )
 
-type Errors []error
-
 func main() {
 	flag.Parse()
 
-	errs := validateInputs()
-	if len(errs) > 0 {
+	e := validateInputs()
+	if e.hasErrors() {
+		e.printErrors(os.Stderr)
 		log.Fatalf("Aborting.")
 	}
 
@@ -33,15 +33,15 @@ func main() {
 		*awsAccessKey,
 		*awsSecret,
 	}
-/*
-	message := "This is a test message"
-	_, err := sqsReq.SendSQSMessage(message)
-	if err != nil {
-		log.Fatalf("Unable to enqueue message: %s", err)
-	}
+	/*
+		message := "This is a test message"
+		_, err := sqsReq.SendSQSMessage(message)
+		if err != nil {
+			log.Fatalf("Unable to enqueue message: %s", err)
+		}
 
-	log.Println("Message sent.")
-*/
+		log.Println("Message sent.")
+	*/
 	msgResp, err := sqsReq.ReceiveSQSMessage()
 	if err != nil {
 		log.Fatalf("Unable to receive message: %s", err)
@@ -66,13 +66,6 @@ func validateInputs() Errors {
 			errs = append(errs, fmt.Errorf("%s needs to be set.", fl.Usage))
 		}
 	})
-
-	if len(errs) > 0 {
-		log.Println("Encountered errors:")
-		for _, err := range errs {
-			log.Println(err)
-		}
-	}
 
 	return errs
 }
