@@ -50,7 +50,7 @@ func main() {
 	log.Println(msgResp.MessageId, "received.")
 	log.Println(msgResp.MessageBody)
 
-	err = sqsReq.DeleteSQSMessage(msgResp.ReceiptHandle)
+	_, err = sqsReq.DeleteSQSMessage(msgResp.ReceiptHandle)
 	if err != nil {
 		log.Fatalf("Unable to delete message: %s", msgResp.MessageId)
 	}

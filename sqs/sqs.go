@@ -136,7 +136,7 @@ func (s *SQSRequest) ReceiveSQSMessage() (*RecvMessageResponse, error) {
 	return rmr, nil
 }
 
-func (s *SQSRequest) DeleteSQSMessage(handle string) error {
+func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicMessageResponse, error) {
 	params := map[string]string{
 		"Action":        "DeleteMessage",
 		"ReceiptHandle": handle,
@@ -144,9 +144,14 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) error {
 
 	reader, err := s.makeSQSRequest(params)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	bmr := new(BasicMessageResponse)
-	return xml.NewDecoder(reader).Decode(bmr)
+	if err = xml.NewDecoder(reader).Decode(bmr); err != nil {
+		return nil, err
+	}
+
+	return bmr, nil
+
 }
