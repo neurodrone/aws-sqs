@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"io"
-	"log"
 )
 
 type Errors []error
@@ -12,8 +12,7 @@ func (e Errors) hasErrors() bool {
 }
 
 func (e Errors) printErrors(w io.Writer) {
-	log.SetOutput(w)
 	for _, err := range e {
-		log.Println(err)
+		fmt.Fprintln(w, err)
 	}
 }
