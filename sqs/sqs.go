@@ -148,10 +148,5 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) error {
 	}
 
 	bmr := new(BasicMessageResponse)
-	err = xml.NewDecoder(reader).Decode(bmr)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return xml.NewDecoder(reader).Decode(bmr)
 }
