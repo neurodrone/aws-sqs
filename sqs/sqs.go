@@ -46,7 +46,7 @@ type SQSRequest struct {
 	AWSSecret    string
 }
 
-func (s *SQSRequest) makeSQSRequest(params map[string]string) (io.Reader, error) {
+func (s *SQSRequest) makeSQSRequest(params map[string]string) (io.ReadCloser, error) {
 	sqsURI := s.generateSQSURI()
 	method := "POST"
 
@@ -103,12 +103,14 @@ func (s *SQSRequest) SendSQSMessage(message string) (*SendMessageResponse, error
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	smr := new(SendMessageResponse)
 	err = xml.NewDecoder(reader).Decode(smr)
 	if err != nil {
 		return nil, err
 	}
+
 
 	return smr, nil
 }
@@ -122,6 +124,7 @@ func (s *SQSRequest) ReceiveSQSMessage() (*RecvMessageResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	rmr := new(RecvMessageResponse)
 	err = xml.NewDecoder(reader).Decode(rmr)
@@ -146,6 +149,7 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicMessageResponse, err
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	bmr := new(BasicMessageResponse)
 	if err = xml.NewDecoder(reader).Decode(bmr); err != nil {
