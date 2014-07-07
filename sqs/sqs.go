@@ -46,8 +46,20 @@ type SQSRequest struct {
 	AWSSecret    string
 }
 
-func (s *SQSRequest) makeSQSRequest(params map[string]string) (io.ReadCloser, error) {
-	sqsURI := s.generateSQSURI()
+func (s *SQSRequest) makeSQSQueueRequest(params map[string]string) (io.ReadCloser, error) {
+	return s.makeSQSRequest(params, true)
+}
+
+func (s *SQSRequest) makeSQSAdminRequest(params map[string]string) (io.ReadCloser, error) {
+	return s.makeSQSRequest(params, false)
+}
+
+func (s *SQSRequest) makeSQSRequest(params map[string]string, isQueueRequest bool) (io.ReadCloser, error) {
+	sqsURI := s.generateSQSQueueURI()
+	if !isQueueRequest {
+		sqsURI = s.generateSQSURI()
+	}
+
 	method := "POST"
 
 	var uv = url.Values{}
@@ -83,12 +95,21 @@ func (s *SQSRequest) makeSQSRequest(params map[string]string) (io.ReadCloser, er
 	return resp.Body, errors.New(resp.Status)
 }
 
-func (s *SQSRequest) generateSQSURI() string {
+func (s *SQSRequest) generateSQSQueueURI() string {
 	var u = url.URL{
 		Scheme: "https",
 		Host:   fmt.Sprintf("sqs.%s.amazonaws.com", s.RegionId),
 		Path:   fmt.Sprintf("/%s/%s", s.UUID, s.QueueName),
 	}
+
+	return u.String()
+}
+
+func (s *SQSRequest) generateSQSURI() string {
+	urlStr := s.generateSQSQueueURI()
+
+	u, _ := url.Parse(urlStr)
+	u.Path = ""
 
 	return u.String()
 }
@@ -99,7 +120,7 @@ func (s *SQSRequest) SendSQSMessage(message string) (*SendMessageResponse, error
 		"MessageBody": message,
 	}
 
-	reader, err := s.makeSQSRequest(params)
+	reader, err := s.makeSQSQueueRequest(params)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +141,7 @@ func (s *SQSRequest) ReceiveSQSMessage() (*RecvMessageResponse, error) {
 		"Action": "ReceiveMessage",
 	}
 
-	reader, err := s.makeSQSRequest(params)
+	reader, err := s.makeSQSQueueRequest(params)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +166,7 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicResponse, error) {
 		"ReceiptHandle": handle,
 	}
 
-	reader, err := s.makeSQSRequest(params)
+	reader, err := s.makeSQSQueueRequest(params)
 	if err != nil {
 		return nil, err
 	}
