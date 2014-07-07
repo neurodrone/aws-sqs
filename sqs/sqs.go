@@ -23,7 +23,7 @@ func (er *ErrorResponse) String() string {
 type SendMessageResponse struct {
 	MessageId  string `xml:"SendMessageResult>MessageId"`
 	MessageMD5 string `xml:"SendMessageResult>MD5OfMessageBody"`
-	BasicMessageResponse
+	BasicResponse
 }
 
 type RecvMessageResponse struct {
@@ -31,10 +31,10 @@ type RecvMessageResponse struct {
 	MessageMD5    string `xml:"ReceiveMessageResult>Message>MD5OfBody"`
 	MessageBody   string `xml:"ReceiveMessageResult>Message>Body"`
 	ReceiptHandle string `xml:"ReceiveMessageResult>Message>ReceiptHandle"`
-	BasicMessageResponse
+	BasicResponse
 }
 
-type BasicMessageResponse struct {
+type BasicResponse struct {
 	RequestId string `xml:"ResponseMetadata>RequestId"`
 }
 
@@ -139,7 +139,7 @@ func (s *SQSRequest) ReceiveSQSMessage() (*RecvMessageResponse, error) {
 	return rmr, nil
 }
 
-func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicMessageResponse, error) {
+func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicResponse, error) {
 	params := map[string]string{
 		"Action":        "DeleteMessage",
 		"ReceiptHandle": handle,
@@ -151,7 +151,7 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicMessageResponse, err
 	}
 	defer reader.Close()
 
-	bmr := new(BasicMessageResponse)
+	bmr := new(BasicResponse)
 	if err = xml.NewDecoder(reader).Decode(bmr); err != nil {
 		return nil, err
 	}
