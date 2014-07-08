@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type ErrorResponse struct {
@@ -31,6 +32,16 @@ type RecvMessageResponse struct {
 	MessageMD5    string `xml:"ReceiveMessageResult>Message>MD5OfBody"`
 	MessageBody   string `xml:"ReceiveMessageResult>Message>Body"`
 	ReceiptHandle string `xml:"ReceiveMessageResult>Message>ReceiptHandle"`
+	BasicResponse
+}
+
+type QueueURLResponse struct {
+	QueueURL string `xml:"GetQueueUrlResult>QueueUrl"`
+	BasicResponse
+}
+
+type QueueListResponse struct {
+	QueueURLs []string `xml:"ListQueuesResult>QueueUrl"`
 	BasicResponse
 }
 
@@ -63,10 +74,11 @@ func (s *SQSRequest) makeSQSRequest(params map[string]string, isQueueRequest boo
 	method := "POST"
 
 	var uv = url.Values{}
-	uv.Set("AWSAccessKey", s.AWSAccessKey)
+	uv.Set("AWSAccessKeyId", s.AWSAccessKey)
 	uv.Set("SignatureVersion", "2")
 	uv.Set("SignatureMethod", "HmacSHA256")
 	uv.Set("Version", "2012-11-05")
+	uv.Set("Timestamp", time.Now().Format(time.RFC3339))
 
 	for key, value := range params {
 		uv.Set(key, value)
@@ -99,7 +111,7 @@ func (s *SQSRequest) generateSQSQueueURI() string {
 	var u = url.URL{
 		Scheme: "https",
 		Host:   fmt.Sprintf("sqs.%s.amazonaws.com", s.RegionId),
-		Path:   fmt.Sprintf("/%s/%s", s.UUID, s.QueueName),
+		Path:   fmt.Sprintf("/%s/%s/", s.UUID, s.QueueName),
 	}
 
 	return u.String()
@@ -109,7 +121,7 @@ func (s *SQSRequest) generateSQSURI() string {
 	urlStr := s.generateSQSQueueURI()
 
 	u, _ := url.Parse(urlStr)
-	u.Path = ""
+	u.Path = "/"
 
 	return u.String()
 }
@@ -131,7 +143,6 @@ func (s *SQSRequest) SendSQSMessage(message string) (*SendMessageResponse, error
 	if err != nil {
 		return nil, err
 	}
-
 
 	return smr, nil
 }
@@ -178,5 +189,43 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicResponse, error) {
 	}
 
 	return bmr, nil
+}
 
+func (s *SQSRequest) QueueURL() (*QueueURLResponse, error) {
+	params := map[string]string{
+		"Action": "GetQueueUrl",
+	}
+
+	reader, err := s.makeSQSAdminRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	qur := new(QueueURLResponse)
+	if err = xml.NewDecoder(reader).Decode(qur); err != nil {
+		return nil, err
+	}
+
+	return qur, nil
+}
+
+func (s *SQSRequest) ListQueues(prefix string) (*QueueListResponse, error) {
+	params := map[string]string{
+		"Action":          "ListQueues",
+		"QueueNamePrefix": prefix,
+	}
+
+	reader, err := s.makeSQSAdminRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	qr := new(QueueListResponse)
+	if err = xml.NewDecoder(reader).Decode(qr); err != nil {
+		return nil, err
+	}
+
+	return qr, nil
 }

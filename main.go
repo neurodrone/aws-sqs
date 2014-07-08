@@ -33,14 +33,16 @@ func main() {
 		*awsAccessKey,
 		*awsSecret,
 	}
-	message := "This is a test message"
-	_, err := sqsReq.SendSQSMessage(message)
-	if err != nil {
-		log.Fatalf("Unable to enqueue message: %s", err)
-	}
 
-	log.Println("Message sent.")
-/*
+	/*
+		message := "Message"
+		_, err := sqsReq.SendSQSMessage(message)
+		if err != nil {
+			log.Fatalf("Unable to enqueue message: %s", err)
+		}
+
+		log.Println("Message sent.")
+	*/
 	msgResp, err := sqsReq.ReceiveSQSMessage()
 	if err != nil {
 		log.Fatalf("Unable to receive message: %s", err)
@@ -55,7 +57,6 @@ func main() {
 	}
 
 	log.Println("Successfully received and deleted.")
-*/
 }
 
 func validateInputs() Errors {
