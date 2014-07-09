@@ -127,6 +127,8 @@ func (s *SQSRequest) generateSQSURI() string {
 }
 
 func (s *SQSRequest) SendSQSMessage(message string) (*SendMessageResponse, error) {
+	message = url.QueryEscape(message)
+
 	params := map[string]string{
 		"Action":      "SendMessage",
 		"MessageBody": message,
@@ -166,6 +168,11 @@ func (s *SQSRequest) ReceiveSQSMessage() (*RecvMessageResponse, error) {
 
 	if rmr.MessageBody == "" && rmr.MessageMD5 == "" {
 		return nil, errors.New("No message to dequeue.")
+	}
+
+	rmr.MessageBody, err = url.QueryUnescape(rmr.MessageBody)
+	if err != nil {
+		return nil, err
 	}
 
 	return rmr, nil
