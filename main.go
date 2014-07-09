@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"github.com/neurodrone/aws-sqs/sqs"
@@ -16,6 +18,11 @@ var (
 	uuid      = flag.String("uuid", "", "AWS Unique ID")
 	queueName = flag.String("queue", "", "AWS Queue Name")
 )
+
+type SampleMessageStruct struct {
+	SomeStr string
+	SomeInt int
+}
 
 func main() {
 	flag.Parse()
@@ -34,22 +41,31 @@ func main() {
 		*awsSecret,
 	}
 
-	/*
-		message := "Message"
-		_, err := sqsReq.SendSQSMessage(message)
-		if err != nil {
-			log.Fatalf("Unable to enqueue message: %s", err)
-		}
+	var buf bytes.Buffer
+	var message string
+	var m *SampleMessageStruct
 
-		log.Println("Message sent.")
-	*/
+	m = &SampleMessageStruct{"strVal", 7}
+	gob.NewEncoder(&buf).Encode(m)
+
+	message = buf.String()
+	_, err := sqsReq.SendSQSMessage(message)
+	if err != nil {
+		log.Fatalf("Unable to enqueue message: %s", err)
+	}
+	log.Println("Message sent.")
+
 	msgResp, err := sqsReq.ReceiveSQSMessage()
 	if err != nil {
 		log.Fatalf("Unable to receive message: %s", err)
 	}
 
 	log.Println(msgResp.MessageId, "received.")
-	log.Println(msgResp.MessageBody)
+	message = msgResp.MessageBody
+
+	m = new(SampleMessageStruct)
+	gob.NewDecoder(bytes.NewBufferString(message)).Decode(m)
+	log.Println(m)
 
 	_, err = sqsReq.DeleteSQSMessage(msgResp.ReceiptHandle)
 	if err != nil {
