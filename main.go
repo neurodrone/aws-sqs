@@ -41,6 +41,18 @@ func main() {
 		*awsSecret,
 	}
 
+	qur, err := sqsReq.QueueURL()
+	if err != nil {
+		log.Fatalf("Unable to fetch queue url: %s", err)
+	}
+	log.Println(qur.QueueURL)
+
+	qlr, err := sqsReq.ListQueues("stat")
+	if err != nil {
+		log.Fatalf("Unable to list queues: %s", err)
+	}
+	log.Println(qlr.QueueURLs)
+
 	var buf bytes.Buffer
 	var message string
 	var m *SampleMessageStruct
@@ -49,7 +61,7 @@ func main() {
 	gob.NewEncoder(&buf).Encode(m)
 
 	message = buf.String()
-	_, err := sqsReq.SendSQSMessage(message)
+	_, err = sqsReq.SendSQSMessage(message)
 	if err != nil {
 		log.Fatalf("Unable to enqueue message: %s", err)
 	}

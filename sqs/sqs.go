@@ -201,6 +201,7 @@ func (s *SQSRequest) DeleteSQSMessage(handle string) (*BasicResponse, error) {
 func (s *SQSRequest) QueueURL() (*QueueURLResponse, error) {
 	params := map[string]string{
 		"Action": "GetQueueUrl",
+		"QueueName": s.QueueName,
 	}
 
 	reader, err := s.makeSQSAdminRequest(params)
