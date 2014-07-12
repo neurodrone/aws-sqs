@@ -30,7 +30,7 @@ func main() {
 	e := validateInputs()
 	if e.hasErrors() {
 		e.printErrors(os.Stderr)
-		log.Fatalf("Aborting.")
+		log.Panicf("Aborting.")
 	}
 
 	sqsReq := &sqs.SQSRequest{
@@ -43,13 +43,13 @@ func main() {
 
 	qur, err := sqsReq.QueueURL()
 	if err != nil {
-		log.Fatalf("Unable to fetch queue url: %s", err)
+		log.Panicf("Unable to fetch queue url: %s", err)
 	}
 	log.Println(qur.QueueURL)
 
 	qlr, err := sqsReq.ListQueues("stat")
 	if err != nil {
-		log.Fatalf("Unable to list queues: %s", err)
+		log.Panicf("Unable to list queues: %s", err)
 	}
 	log.Println(qlr.QueueURLs)
 
@@ -63,13 +63,13 @@ func main() {
 	message = buf.String()
 	_, err = sqsReq.SendSQSMessage(message)
 	if err != nil {
-		log.Fatalf("Unable to enqueue message: %s", err)
+		log.Panicf("Unable to enqueue message: %s", err)
 	}
 	log.Println("Message sent.")
 
 	msgResp, err := sqsReq.ReceiveSQSMessage()
 	if err != nil {
-		log.Fatalf("Unable to receive message: %s", err)
+		log.Panicf("Unable to receive message: %s", err)
 	}
 
 	log.Println(msgResp.MessageId, "received.")
@@ -81,7 +81,7 @@ func main() {
 
 	_, err = sqsReq.DeleteSQSMessage(msgResp.ReceiptHandle)
 	if err != nil {
-		log.Fatalf("Unable to delete message: %s", msgResp.MessageId)
+		log.Panicf("Unable to delete message: %s", msgResp.MessageId)
 	}
 
 	log.Println("Successfully received and deleted.")
