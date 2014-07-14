@@ -41,7 +41,15 @@ func main() {
 		*awsSecret,
 	}
 
-	qur, err := sqsReq.QueueURL()
+	qur, err := sqsReq.CreateQueue("stats-test3", map[string]string{
+		"VisibilityTimeout": "40",
+	})
+	if err != nil {
+		log.Panicf("Unable to create queue: %s", err)
+	}
+	log.Println("Successfully created queue at:", qur.QueueURL)
+
+	qur, err = sqsReq.QueueURL()
 	if err != nil {
 		log.Panicf("Unable to fetch queue url: %s", err)
 	}

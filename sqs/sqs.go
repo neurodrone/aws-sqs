@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"log"
 	"io"
 	"net/http"
 	"net/url"
@@ -36,7 +37,7 @@ type RecvMessageResponse struct {
 }
 
 type QueueURLResponse struct {
-	QueueURL string `xml:"GetQueueUrlResult>QueueUrl"`
+	QueueURL string `xml:"QueueUrl"`
 	BasicResponse
 }
 
@@ -236,4 +237,33 @@ func (s *SQSRequest) ListQueues(prefix string) (*QueueListResponse, error) {
 	}
 
 	return qr, nil
+}
+
+func (s *SQSRequest) CreateQueue(queueName string, options map[string]string) (*QueueURLResponse, error) {
+	params := map[string]string{
+		"Action": "CreateQueue",
+		"QueueName": queueName,
+	}
+
+	count := 1
+	for name, value := range options {
+		params[fmt.Sprintf("Attribute.%d.Name", count)] = name
+		params[fmt.Sprintf("Attribute.%d.Value", count)] = value
+		count++
+	}
+
+	reader, err := s.makeSQSAdminRequest(params)
+	if err != nil {
+		er := new(ErrorResponse)
+		xml.NewDecoder(reader).Decode(er)
+		log.Println(er)
+		return nil, err
+	}
+
+	qur := new(QueueURLResponse)
+	if err = xml.NewDecoder(reader).Decode(qur); err != nil {
+		return nil, err
+	}
+
+	return qur, nil
 }
