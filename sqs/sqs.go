@@ -127,12 +127,12 @@ func (s *SQSRequest) generateSQSURI() string {
 	return u.String()
 }
 
-func (s *SQSRequest) SendSQSMessage(message string) (*SendMessageResponse, error) {
-	message = url.QueryEscape(message)
+func (s *SQSRequest) SendSQSMessage(message []byte) (*SendMessageResponse, error) {
+	msg := url.QueryEscape(string(message))
 
 	params := map[string]string{
 		"Action":      "SendMessage",
-		"MessageBody": message,
+		"MessageBody": msg,
 	}
 
 	reader, err := s.makeSQSQueueRequest(params)

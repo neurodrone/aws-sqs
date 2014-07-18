@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"github.com/neurodrone/aws-sqs/sqs"
+	"github.internal.digitalocean.com/vendor/aws-sqs/sqs"
 	"log"
 	"os"
 )
@@ -68,8 +68,7 @@ func main() {
 	m = &SampleMessageStruct{"strVal", 7}
 	gob.NewEncoder(&buf).Encode(m)
 
-	message = buf.String()
-	_, err = sqsReq.SendSQSMessage(message)
+	_, err = sqsReq.SendSQSMessage(buf.Bytes())
 	if err != nil {
 		log.Panicf("Unable to enqueue message: %s", err)
 	}
