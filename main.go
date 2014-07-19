@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
-	"github.internal.digitalocean.com/vendor/aws-sqs/sqs"
+	"github.com/neurodrone/aws-sqs/sqs"
 	"log"
 	"os"
 )
